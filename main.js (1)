@@ -1,0 +1,192 @@
+// ==========================================
+//  B.K. Cricket Academy — Main JavaScript
+// ==========================================
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ── NAVBAR: scroll effect & mobile toggle ──
+  const navbar    = document.getElementById('navbar');
+  const navToggle = document.getElementById('navToggle');
+  const navLinks  = document.getElementById('navLinks');
+
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 40);
+  });
+
+  navToggle.addEventListener('click', () => {
+    navLinks.classList.toggle('open');
+    const spans = navToggle.querySelectorAll('span');
+    const isOpen = navLinks.classList.contains('open');
+    spans[0].style.transform = isOpen ? 'rotate(45deg) translate(5px, 5px)' : '';
+    spans[1].style.opacity   = isOpen ? '0' : '1';
+    spans[2].style.transform = isOpen ? 'rotate(-45deg) translate(5px, -5px)' : '';
+  });
+
+  // Close mobile menu when a link is clicked
+  navLinks.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', () => {
+      navLinks.classList.remove('open');
+      navToggle.querySelectorAll('span').forEach(s => {
+        s.style.transform = '';
+        s.style.opacity = '1';
+      });
+    });
+  });
+
+  // ── SMOOTH SCROLL ──
+  document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', e => {
+      const target = document.querySelector(anchor.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        const offset = 72; // navbar height
+        const top = target.getBoundingClientRect().top + window.scrollY - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+      }
+    });
+  });
+
+  // ── SCROLL REVEAL ANIMATIONS ──
+  const animateOnScroll = (selector, threshold = 0.15) => {
+    const elements = document.querySelectorAll(selector);
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry, i) => {
+        if (entry.isIntersecting) {
+          const delay = entry.target.dataset.aos
+            ? (parseInt(entry.target.dataset.aos) - 1) * 80
+            : 0;
+          setTimeout(() => {
+            entry.target.classList.add('visible');
+          }, delay);
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold });
+    elements.forEach(el => observer.observe(el));
+  };
+
+  animateOnScroll('.service-card');
+  animateOnScroll('.schedule-card', 0.2);
+  animateOnScroll('.contact-card');
+  animateOnScroll('.coach-container > *', 0.2);
+
+  // ── REGISTRATION FORM ──
+  const form        = document.getElementById('registrationForm');
+  const formSuccess = document.getElementById('formSuccess');
+  const successPhone = document.getElementById('successPhone');
+
+  if (form) {
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      // Basic validation
+      const name   = document.getElementById('playerName');
+      const age    = document.getElementById('playerAge');
+      const gender = document.getElementById('playerGender');
+      const phone  = document.getElementById('playerPhone');
+      const session = document.getElementById('sessionPref');
+
+      let valid = true;
+      [name, age, gender, phone].forEach(field => {
+        field.classList.remove('error');
+        if (!field.value.trim()) {
+          field.classList.add('error');
+          valid = false;
+        }
+      });
+      if (phone.value && !/^\d{7,15}$/.test(phone.value.replace(/\s+/g, ''))) {
+        phone.classList.add('error');
+        valid = false;
+      }
+
+      if (!valid) {
+        shakeFeedback(form);
+        return;
+      }
+
+      // Store in table
+      const submitBtn = form.querySelector('.btn-register');
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting...';
+
+      try {
+        await fetch('tables/registrations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            player_name:    name.value.trim(),
+            age:            parseInt(age.value),
+            gender:         gender.value,
+            session_pref:   session.value,
+            phone:          phone.value.trim(),
+            submitted_at:   new Date().toISOString()
+          })
+        });
+      } catch (err) {
+        // Even if API fails, show success to user
+        console.warn('API error (non-critical):', err);
+      }
+
+      // Show success
+      successPhone.textContent = phone.value.trim();
+      form.style.display = 'none';
+      formSuccess.style.display = 'flex';
+      formSuccess.style.flexDirection = 'column';
+      formSuccess.style.alignItems = 'center';
+    });
+  }
+
+  function shakeFeedback(el) {
+    el.style.animation = 'shake 0.4s ease';
+    el.addEventListener('animationend', () => el.style.animation = '', { once: true });
+  }
+
+  // Add shake keyframe dynamically
+  const style = document.createElement('style');
+  style.textContent = `
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+    .form-group input.error,
+    .form-group select.error {
+      border-color: var(--red) !important;
+      box-shadow: 0 0 0 3px rgba(204,0,0,0.12) !important;
+    }
+  `;
+  document.head.appendChild(style);
+
+  // ── ACTIVE NAV LINK HIGHLIGHT on scroll ──
+  const sections = document.querySelectorAll('section[id]');
+  const navLinksAll = document.querySelectorAll('.nav-links a');
+
+  window.addEventListener('scroll', () => {
+    let currentSection = '';
+    sections.forEach(section => {
+      const sectionTop = section.offsetTop - 90;
+      if (window.scrollY >= sectionTop) {
+        currentSection = section.getAttribute('id');
+      }
+    });
+    navLinksAll.forEach(link => {
+      link.style.color = link.getAttribute('href') === `#${currentSection}`
+        ? 'var(--yellow)'
+        : '';
+    });
+  });
+
+  // ── HERO PARALLAX (subtle) ──
+  const heroBg = document.querySelector('.hero-bg-shapes');
+  if (heroBg) {
+    window.addEventListener('scroll', () => {
+      const scrolled = window.scrollY;
+      heroBg.style.transform = `translateY(${scrolled * 0.25}px)`;
+    }, { passive: true });
+  }
+
+  // ── COUNTER ANIMATION (if needed in future) ──
+  // Placeholder for count-up stats
+
+  console.log('🏏 B.K. Cricket Academy — Website loaded successfully!');
+});
